@@ -31,19 +31,13 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilização CSS profissional para garantir letras pretas nos inputs e visual limpo
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: #ffffff; }
     .titulo { text-align: center; font-size: 2.2rem; font-weight: bold; color: #ffffff; margin-bottom: 0px; }
     .subtitulo { text-align: center; color: #8a99ad; margin-bottom: 30px; }
     .bloco-secao { background-color: #161b22; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #30363d; }
-    
-    /* Garante que o texto digitado nos campos de input fique PRETO e bem visível */
-    input {
-        color: #000000 !important;
-        font-weight: 600 !important;
-    }
+    input { color: #000000 !important; font-weight: 600 !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -91,7 +85,7 @@ ESTADOS = {
 UFS_ORDENADAS = sorted(ESTADOS.keys())
 
 # ==========================================
-# GERENCIAMENTO DE USUÁRIOS E LOGS DE ACESSO
+# GERENCIAMENTO DE USUÁRIOS E PERSISTÊNCIA
 # ==========================================
 if "usuarios_db" not in st.session_state:
     st.session_state["usuarios_db"] = {
@@ -101,6 +95,13 @@ if "usuarios_db" not in st.session_state:
 
 if "logs_acesso" not in st.session_state:
     st.session_state["logs_acesso"] = []
+
+# Mantém a sessão ativa mesmo se apertar F5 usando parâmetros na URL
+params = st.query_params
+if "user" in params and "cargo" in params:
+    st.session_state["autenticado"] = True
+    st.session_state["usuario_atual"] = params["user"]
+    st.session_state["cargo_atual"] = params["cargo"]
 
 if "autenticado" not in st.session_state:
     st.session_state["autenticado"] = False
@@ -128,7 +129,10 @@ def tela_login():
                         st.session_state["usuario_atual"] = usuario
                         st.session_state["cargo_atual"] = db[usuario]["cargo"]
                         
-                        # Detecção do SO
+                        # Salva na URL para o F5 não derrubar o login
+                        st.query_params["user"] = usuario
+                        st.query_params["cargo"] = db[usuario]["cargo"]
+                        
                         so_detectado = "Windows PC"
                         if hasattr(st, "context") and hasattr(st.context, "headers"):
                             ua = str(st.context.headers.get("Sec-Ch-Ua-Platform", ""))
@@ -136,7 +140,6 @@ def tela_login():
                             elif "iOS" in ua or "iPhone" in ua: so_detectado = "iOS (iPhone/iPad)"
                             elif "Mac" in ua: so_detectado = "MacOS"
 
-                        # Geolocalização automática por IP
                         localizacao_ip = "Brasil (Rede Local)"
                         try:
                             res = requests.get("https://ipapi.co/json/", timeout=2).json()
@@ -234,6 +237,7 @@ else:
     
     if st.sidebar.button("🚪 Sair / Logout"):
         st.session_state["autenticado"] = False
+        st.query_params.clear()
         st.rerun()
         
     st.sidebar.markdown("---")
